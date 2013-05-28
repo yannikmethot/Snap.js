@@ -15,6 +15,7 @@
     var Snap = Snap || function(userOpts) {
         var settings = {
             element: null,
+            elements: null,
             disable: 'none',
             addBodyClasses: true,
             resistance: 0.5,
@@ -90,7 +91,8 @@
                 return (cache.vendor==='Moz' || cache.vendor=='ms') ? 'transitionend' : cache.vendor+'TransitionEnd';
             },
             canTransform: function(){
-                return typeof settings.element.style[cache.vendor+'Transform'] !== 'undefined';
+                //return typeof settings.element.style[cache.vendor+'Transform'] !== 'undefined';
+                return typeof settings.elements[0].style[cache.vendor+'Transform'] !== 'undefined';
             },
             deepExtend: function(destination, source) {
                 var property;
@@ -157,10 +159,12 @@
                     matrix: function(index) {
 
                         if( !utils.canTransform() ){
-                            return parseInt(settings.element.style.left, 10);
+                            //return parseInt(settings.element.style.left, 10);
+                            return parseInt(settings.elements[0].style.left, 10);
                         } else {
-                            var matrix = win.getComputedStyle(settings.element)[cache.vendor+'Transform'].match(/\((.*)\)/),
-                                ieOffset = 8;
+                            //var matrix = win.getComputedStyle(settings.element)[cache.vendor+'Transform'].match(/\((.*)\)/);
+                            var matrix = win.getComputedStyle(settings.elements[0])[cache.vendor+'Transform'].match(/\((.*)\)/);
+                            var ieOffset = 8;
                             if (matrix) {
                                 matrix = matrix[1].split(',');
                                 if(matrix.length==16){
@@ -173,7 +177,15 @@
                     }
                 },
                 easeCallback: function(){
-                    settings.element.style[cache.vendor+'Transition'] = '';
+                    //settings.element.style[cache.vendor+'Transition'] = '';
+                    var i = 0;
+                    var element;
+
+                    for (i = 0; i < settings.elements.length; i++) {
+                        element = settings.elements[i];
+                        element.style[cache.vendor+'Transition'] = '';
+                    }
+
                     cache.translation = action.translate.get.matrix(4);
                     cache.easing = false;
                     clearInterval(cache.animatingInterval);
@@ -184,9 +196,18 @@
                     }
 
                     utils.dispatchEvent('animated');
-                    utils.events.removeEvent(settings.element, utils.transitionCallback(), action.translate.easeCallback);
+                    //utils.events.removeEvent(settings.element, utils.transitionCallback(), action.translate.easeCallback);
+
+                    for (i = 0; i < settings.elements.length; i++) {
+                        element = settings.elements[i];
+                        utils.events.removeEvent(element, utils.transitionCallback(), action.translate.easeCallback);
+                    }
+
                 },
                 easeTo: function(n) {
+
+                    var i = 0;
+                    var element;
 
                     if( !utils.canTransform() ){
                         cache.translation = n;
@@ -195,18 +216,33 @@
                         cache.easing = true;
                         cache.easingTo = n;
 
-                        settings.element.style[cache.vendor+'Transition'] = 'all ' + settings.transitionSpeed + 's ' + settings.easing;
+                        //settings.element.style[cache.vendor+'Transition'] = 'all ' + settings.transitionSpeed + 's ' + settings.easing;
+
+                        for (i = 0; i < settings.elements.length; i++) {
+                            element = settings.elements[i];
+                            element.style[cache.vendor+'Transition'] = 'all ' + settings.transitionSpeed + 's ' + settings.easing;
+                        }
 
                         cache.animatingInterval = setInterval(function() {
                             utils.dispatchEvent('animating');
                         }, 1);
 
-                        utils.events.addEvent(settings.element, utils.transitionCallback(), action.translate.easeCallback);
+                        //utils.events.addEvent(settings.element, utils.transitionCallback(), action.translate.easeCallback);
+
+                        for (i = 0; i < settings.elements.length; i++) {
+                            element = settings.elements[i];
+                            utils.events.addEvent(element, utils.transitionCallback(), action.translate.easeCallback);
+                        }
+
                         action.translate.x(n);
                     }
                     
                 },
                 x: function(n) {
+
+                    var i = 0;
+                    var element;
+
                     if( (settings.disable=='left' && n>0) ||
                         (settings.disable=='right' && n<0)
                     ){ return; }
@@ -218,12 +254,22 @@
 
                     if( utils.canTransform() ){
                         var theTranslate = 'translate3d(' + n + 'px, 0,0)';
-                        settings.element.style[cache.vendor+'Transform'] = theTranslate;
+                        //settings.element.style[cache.vendor+'Transform'] = theTranslate;
+                        for (i = 0; i < settings.elements.length; i++) {
+                            element = settings.elements[i];
+                            element.style[cache.vendor+'Transform'] = theTranslate;
+                        }
                     } else {
-                        settings.element.style.width = (win.innerWidth || doc.documentElement.clientWidth)+'px';
+                        //settings.element.style.width = (win.innerWidth || doc.documentElement.clientWidth)+'px';
+                        //settings.element.style.left = n+'px';
+                        //settings.element.style.right = '';
 
-                        settings.element.style.left = n+'px';
-                        settings.element.style.right = '';
+                        for (i = 0; i < settings.elements.length; i++) {
+                            element = settings.elements[i];
+                            element.style.width = (win.innerWidth || doc.documentElement.clientWidth)+'px';
+                            element.style.left = n+'px';
+                            element.style.right = '';
+                        }
                     }
                 }
             },
@@ -231,14 +277,30 @@
                 listen: function() {
                     cache.translation = 0;
                     cache.easing = false;
-                    utils.events.addEvent(settings.element, utils.eventType('down'), action.drag.startDrag);
+
+                    for (var i = 0; i < settings.elements.length; i++) {
+                        var element = settings.elements[i];
+                        utils.events.addEvent(element, utils.eventType('down'), action.drag.startDrag);
+                        utils.events.addEvent(element, utils.eventType('move'), action.drag.dragging);
+                        utils.events.addEvent(element, utils.eventType('up'), action.drag.endDrag);
+                    }
+
+                    /*utils.events.addEvent(settings.element, utils.eventType('down'), action.drag.startDrag);
                     utils.events.addEvent(settings.element, utils.eventType('move'), action.drag.dragging);
-                    utils.events.addEvent(settings.element, utils.eventType('up'), action.drag.endDrag);
+                    utils.events.addEvent(settings.element, utils.eventType('up'), action.drag.endDrag);*/
                 },
                 stopListening: function() {
-                    utils.events.removeEvent(settings.element, utils.eventType('down'), action.drag.startDrag);
+
+                    for (var i = 0; i < settings.elements.length; i++) {
+                        var element = settings.elements[i];
+                        utils.events.removeEvent(element, utils.eventType('down'), action.drag.startDrag);
+                        utils.events.removeEvent(element, utils.eventType('move'), action.drag.dragging);
+                        utils.events.removeEvent(element, utils.eventType('up'), action.drag.endDrag);
+                    }
+
+                    /*utils.events.removeEvent(settings.element, utils.eventType('down'), action.drag.startDrag);
                     utils.events.removeEvent(settings.element, utils.eventType('move'), action.drag.dragging);
-                    utils.events.removeEvent(settings.element, utils.eventType('up'), action.drag.endDrag);
+                    utils.events.removeEvent(settings.element, utils.eventType('up'), action.drag.endDrag);*/
                 },
                 startDrag: function(e) {
                     // No drag on ignored elements
@@ -250,7 +312,13 @@
                     }
 
                     utils.dispatchEvent('start');
-                    settings.element.style[cache.vendor+'Transition'] = '';
+                    //settings.element.style[cache.vendor+'Transition'] = '';
+
+                    for (var i = 0; i < settings.elements.length; i++) {
+                        var element = settings.elements[i];
+                        element.style[cache.vendor+'Transition'] = '';
+                    }
+
                     cache.isDragging = true;
                     cache.hasIntent = null;
                     cache.intentChecked = false;
@@ -434,7 +502,7 @@
             }
         },
         init = function(opts) {
-            if (opts.element) {
+            if (opts.element || opts.elements) {
                 utils.deepExtend(settings, opts);
                 cache.vendor = utils.vendor();
                 action.drag.listen();
@@ -444,7 +512,6 @@
          * Public
          */
         this.open = function(side) {
-
             utils.klass.remove(doc.body, 'snapjs-expand-left');
             utils.klass.remove(doc.body, 'snapjs-expand-right');
 
@@ -528,4 +595,7 @@
             return Snap;
         });
     }
+
+
+
 }).call(this, window, document);
